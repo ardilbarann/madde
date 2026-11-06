@@ -17,7 +17,10 @@ class Source:
 SOURCES = [
     Source(
         id="tbdy-2018",
-        title="Türkiye Bina Deprem Yönetmeliği (Ek: Deprem Etkisi Altında Binaların Tasarımı İçin Esaslar)",
+        title=(
+            "Türkiye Bina Deprem Yönetmeliği"
+            " (Ek: Deprem Etkisi Altında Binaların Tasarımı İçin Esaslar)"
+        ),
         url="https://www.resmigazete.gov.tr/eskiler/2018/03/20180318M1-2-1.pdf",
         published_on=date(2018, 3, 18),
         fmt="numbered",

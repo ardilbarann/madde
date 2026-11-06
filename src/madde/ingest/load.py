@@ -3,7 +3,7 @@ from pathlib import Path
 import pypdf
 
 from madde import db
-from madde.ingest.parse import Chunk, parse
+from madde.ingest.parse import Chunk
 from madde.ingest.sources import Source
 
 

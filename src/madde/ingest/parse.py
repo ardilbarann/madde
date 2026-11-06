@@ -164,7 +164,7 @@ def parse_numbered(pages: list[str]) -> list[Chunk]:
         if m and m.group(1) not in seen:
             label, is_heading, rest = m.group(1), bool(m.group(2)), m.group(3).strip()
             key = _key(label)
-            # Reject table cells and stray numbers: numbering only moves forward, one chapter at a time.
+            # Reject table cells and stray numbers: numbering moves forward, one chapter at a time.
             first = last_key == (0,)
             if key[0] >= 1 and key > last_key and (first or key[0] <= last_key[0] + 1):
                 flush()
