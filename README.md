@@ -3,7 +3,7 @@
 A citation-grounded assistant for Turkish building regulations (TBDY 2018, the zoning regulation, the fire protection regulation).
 Every claim in an answer must point to a specific article and quote it. When no article supports an answer, the assistant says so instead of guessing.
 
-**Status:** early. Done: service skeleton, Postgres with pgvector, and ingestion of the three regulations into 2,921 citable chunks. Retrieval, the agent and the eval set come next.
+**Status:** early. Done: service skeleton, Postgres with pgvector, and ingestion of the three regulations into 2,921 citable chunks. Hybrid retrieval, the agent and the eval set come next.
 
 | Regulation | Source | Layout | Chunks |
 |---|---|---|---|
@@ -13,6 +13,15 @@ Every claim in an answer must point to a specific article and quote it. When no 
 
 Chunks follow the legal structure, so a citation points at something a reader can look up: `tbdy-2018 2.3.4.2`, `imar 4(1)(ll)`, `yangin Ek-5/A`.
 Long articles are split by fıkra, then by bent. Each chunk keeps the PDF page it starts on.
+
+Every chunk is embedded locally with [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) (1024-d, multilingual), so Turkish text can be searched in English too.
+The model is an optional extra, so the service image and CI stay small:
+
+```bash
+uv sync --extra embed
+DATABASE_URL=... uv run python -m madde embed            # fills missing vectors (~2 GB model download once)
+DATABASE_URL=... uv run python -m madde nearest "imar durum belgesi nedir"
+```
 
 ## Run locally
 
