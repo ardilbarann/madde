@@ -1,0 +1,30 @@
+name: ci
+on:
+  push: {branches: [main]}
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env: {POSTGRES_USER: madde, POSTGRES_PASSWORD: madde, POSTGRES_DB: madde}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U madde" --health-interval 2s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://madde:madde@localhost:5432/madde
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t madde:ci .
