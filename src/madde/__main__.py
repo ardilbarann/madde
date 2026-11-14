@@ -22,6 +22,11 @@ def main() -> None:
     se.add_argument("-k", type=int, default=8)
     se.add_argument("--regulation", default=None, help="tbdy-2018, imar or yangin")
     se.add_argument("--no-vector", action="store_true", help="skip the embedding model")
+    ask = sub.add_parser("ask", help="answer a question with verified citations (calls the LLM)")
+    ask.add_argument("question")
+    ask.add_argument("--regulation", default=None, help="tbdy-2018, imar or yangin")
+    ask.add_argument("--no-vector", action="store_true", help="skip the embedding model")
+    ask.add_argument("--no-rewrite", action="store_true", help="search with the question as typed")
     args = parser.parse_args()
     url = get_settings().database_url
 
@@ -65,6 +70,30 @@ def main() -> None:
             ranks = " ".join(f"{name}#{rank}" for name, rank in h.ranks.items())
             print(f"{h.score:.4f}  {h.regulation_id} {h.article}  p{h.page}  [{ranks}]")
             print(f"        {h.heading or ''}")
+    elif args.cmd == "ask":
+        from madde import agent
+        from madde.llm import ClaudeLLM
+
+        embed = None
+        if not args.no_vector:
+            from madde.embed import BgeM3
+
+            model = BgeM3()
+            embed = lambda text: model.embed([text])[0]  # noqa: E731
+        settings = get_settings()
+        result = agent.ask(
+            args.question,
+            ClaudeLLM(settings.llm_model, settings.anthropic_api_key),
+            agent.db_retriever(url, embed),
+            args.regulation,
+            rewrite=not args.no_rewrite,
+        )
+        print(f"[{result['status']}, {result['attempts']} attempt(s)] search: {result['query']}")
+        print(result["summary"])
+        for c in result["claims"]:
+            print(f'\n- {c["statement"]}\n  {c["regulation_id"]} {c["article"]}: "{c["quote"]}"')
+        for reason in result["failures"]:
+            print(f"  ! {reason}")
 
 
 if __name__ == "__main__":

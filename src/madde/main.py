@@ -1,13 +1,16 @@
 from dataclasses import asdict
 from functools import lru_cache
 
+import anthropic
 import psycopg
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
-from madde import __version__, db, search
+from madde import __version__, agent, db, search
 from madde.config import get_settings
 from madde.embed import Embedder
+from madde.llm import LLM, ClaudeLLM, LLMRefused
 
 app = FastAPI(title="Madde", version=__version__)
 
@@ -56,3 +59,36 @@ def search_chunks(
         "references": [r.article for r in search.parse_refs(q)],
         "hits": [asdict(h) for h in hits],
     }
+
+
+@lru_cache
+def get_llm() -> LLM:
+    settings = get_settings()
+    return ClaudeLLM(settings.llm_model, settings.anthropic_api_key)
+
+
+class Question(BaseModel):
+    question: str = Field(min_length=3, max_length=1000)
+    regulation: str | None = None
+
+
+@app.post("/answer")
+def answer(body: Question) -> dict:
+    """A cited answer, or an explicit not_found / rejected. Nothing unverified is returned."""
+    embedder = get_embedder()
+    embed = (lambda text: embedder.embed([text])[0]) if embedder else None
+    retrieve = agent.db_retriever(get_settings().database_url, embed)
+    try:
+        return agent.ask(body.question, get_llm(), retrieve, body.regulation)
+    except psycopg.Error as exc:
+        raise HTTPException(503, "database unavailable") from exc
+    except LLMRefused as exc:
+        raise HTTPException(422, f"the model declined this question ({exc})") from exc
+    except anthropic.AuthenticationError as exc:
+        raise HTTPException(503, "model credentials are missing or invalid") from exc
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "model rate limit reached, retry later") from exc
+    except anthropic.APIStatusError as exc:
+        raise HTTPException(502, f"model API error ({exc.status_code})") from exc
+    except anthropic.APIConnectionError as exc:
+        raise HTTPException(502, "model API unreachable") from exc

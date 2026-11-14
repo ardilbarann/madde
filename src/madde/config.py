@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql://madde:madde@localhost:5442/madde"
     embedding_dim: int = 1024
+    llm_model: str = "claude-opus-5-5"
+    anthropic_api_key: str | None = None  # unset: the SDK resolves credentials itself
 
 
 @lru_cache
