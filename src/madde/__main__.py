@@ -17,6 +17,11 @@ def main() -> None:
     q = sub.add_parser("nearest", help="semantic nearest chunks for a query (debugging)")
     q.add_argument("query")
     q.add_argument("-k", type=int, default=5)
+    se = sub.add_parser("search", help="hybrid search: vectors + full-text + article references")
+    se.add_argument("query")
+    se.add_argument("-k", type=int, default=8)
+    se.add_argument("--regulation", default=None, help="tbdy-2018, imar or yangin")
+    se.add_argument("--no-vector", action="store_true", help="skip the embedding model")
     args = parser.parse_args()
     url = get_settings().database_url
 
@@ -48,6 +53,18 @@ def main() -> None:
         vec = BgeM3().embed([args.query])[0]
         for reg, article, heading, page, score in nearest(url, vec, args.k):
             print(f"{score:.3f}  {reg} {article}  p{page}  {heading or ''}")
+    elif args.cmd == "search":
+        from madde.search import hybrid_search
+
+        vec = None
+        if not args.no_vector:
+            from madde.embed import BgeM3
+
+            vec = BgeM3().embed([args.query])[0]
+        for h in hybrid_search(url, args.query, vec, args.k, args.regulation):
+            ranks = " ".join(f"{name}#{rank}" for name, rank in h.ranks.items())
+            print(f"{h.score:.4f}  {h.regulation_id} {h.article}  p{h.page}  [{ranks}]")
+            print(f"        {h.heading or ''}")
 
 
 if __name__ == "__main__":

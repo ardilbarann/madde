@@ -32,7 +32,7 @@ def test_chunk_roundtrip_with_vector_and_fulltext():
             (vec,),
         )
         hit = conn.execute(
-            "SELECT article FROM chunks WHERE tsv @@ plainto_tsquery('simple', 'deprem')"
+            "SELECT article FROM chunks WHERE tsv @@ plainto_tsquery('turkish', 'deprem')"
             " AND regulation_id = 'test-reg'"
         ).fetchone()
         nearest = conn.execute(

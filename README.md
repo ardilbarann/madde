@@ -3,7 +3,7 @@
 A citation-grounded assistant for Turkish building regulations (TBDY 2018, the zoning regulation, the fire protection regulation).
 Every claim in an answer must point to a specific article and quote it. When no article supports an answer, the assistant says so instead of guessing.
 
-**Status:** early. Done: service skeleton, Postgres with pgvector, and ingestion of the three regulations into 2,921 citable chunks. Hybrid retrieval, the agent and the eval set come next.
+**Status:** early. Done: service skeleton, Postgres with pgvector, ingestion of the three regulations into 2,921 citable chunks, local embeddings and hybrid retrieval. The agent and the eval set come next; retrieval quality has not been measured yet.
 
 | Regulation | Source | Layout | Chunks |
 |---|---|---|---|
@@ -22,6 +22,25 @@ uv sync --extra embed
 DATABASE_URL=... uv run python -m madde embed            # fills missing vectors (~2 GB model download once)
 DATABASE_URL=... uv run python -m madde nearest "imar durum belgesi nedir"
 ```
+
+## Hybrid retrieval
+
+A question is answered from three ranked lists, merged with weighted reciprocal rank fusion:
+
+| Signal | What it catches | How |
+|---|---|---|
+| Article reference | "madde 34", "33/2", "Ek-5/B", "TBDY 3.2.1" typed in the question | parsed into the stored label; children included, missing subsections fall back to the parent |
+| Dense vectors | paraphrases, English questions | bge-m3 cosine over an HNSW index |
+| Full-text | exact legal terms | Postgres Turkish stemmer, terms OR-ed and weighted by inverse document frequency |
+
+An article the user names outranks the other two signals. Each hit reports its rank in every list, so a result can be explained.
+
+```bash
+DATABASE_URL=... uv run python -m madde search "yangın merdiveni genişliği en az kaç cm"
+curl -G localhost:8000/search --data-urlencode "q=yangın yönetmeliği madde 34" -d k=5
+```
+
+`/search` returns `modes`, the signals it actually used. Without the `embed` extra installed (the default image) it runs on references and full-text only.
 
 ## Run locally
 
@@ -45,7 +64,6 @@ DATABASE_URL=postgresql://madde:madde@localhost:5442/madde uv run pytest
 
 ## Planned design
 
-- Article-level chunks with hybrid retrieval (pgvector + Postgres full-text, exact article-number match)
 - LangGraph agent producing structured answers: claim, article id, quote
 - Deterministic citation check: a quote must appear verbatim in the cited article, or the answer is rejected
 - Eval set of 60 questions (10 out of scope) with retrieval recall, citation accuracy and refusal rate reported here
